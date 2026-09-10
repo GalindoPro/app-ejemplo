@@ -75,8 +75,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoginModalOpen(false);
       setIsLoading(false);
       return true;
-    } catch {
-      setLoginError('Ocurrió un error al procesar el inicio de sesión.');
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Ocurrió un error al procesar el inicio de sesión.';
+      setLoginError(msg);
       setIsLoading(false);
       return false;
     }
@@ -84,9 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('app_user_session');
-    }
+    AuthService.logout();
   };
 
   return (

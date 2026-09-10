@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Pencil, Trash2, Mail, Phone, MapPin, FileText } from 'lucide-react';
 
 import { ClientService } from '@/modules/clients/services/client.service';
@@ -77,58 +77,82 @@ const columns: TableColumn<ClientModel>[] = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ClientsPage() {
-  const [clients, setClients] = useState<ClientModel[]>(ClientService.getAll());
+  const [clients, setClients] = useState<ClientModel[]>([]);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [modal, setModal] = useState<ModalState>({ type: 'closed' });
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const refresh = useCallback(() => {
-    setClients(ClientService.getAll());
-    setCurrentPage(1);
+  const fetchClients = useCallback(async (searchTerm: string, pageNum: number) => {
+    setIsLoading(true);
+    try {
+      const result = await ClientService.getClients(searchTerm, pageNum - 1, PAGE_SIZE);
+      setClients(result.content);
+      setTotalElements(result.totalElements);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error('Error cargando clientes:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const filtered = useMemo(
-    () => (search.trim() ? ClientService.search(search) : clients),
-    [search, clients]
-  );
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filtered, currentPage]
-  );
+  useEffect(() => {
+    fetchClients(search, currentPage);
+  }, [search, currentPage, fetchClients]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
     setCurrentPage(1);
   };
 
-  const handleSave = (data: ClientFormData) => {
+  const handleSave = async (data: ClientFormData) => {
     setIsSaving(true);
-    setTimeout(() => {
+    try {
       if (modal.type === 'create') {
-        ClientService.create(data);
+        await ClientService.create(data);
       } else if (modal.type === 'edit') {
-        ClientService.update(modal.client.id, data);
+        await ClientService.update(modal.client.id, data);
       }
-      refresh();
       setModal({ type: 'closed' });
+      fetchClients(search, currentPage);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al guardar cliente';
+      alert(msg);
+    } finally {
       setIsSaving(false);
-    }, 400);
+    }
   };
 
-  const handleDelete = (client: ClientModel) => {
-    ClientService.delete(client.id);
-    refresh();
-    setModal({ type: 'closed' });
+  const handleDelete = async (client: ClientModel) => {
+    try {
+      await ClientService.delete(client.id);
+      setModal({ type: 'closed' });
+      fetchClients(search, currentPage);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al eliminar cliente';
+      alert(msg);
+    }
+  };
+
+  const handleToggleActive = async (client: ClientModel) => {
+    try {
+      await ClientService.toggleActive(client.id);
+      fetchClients(search, currentPage);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error al cambiar estado';
+      alert(msg);
+    }
   };
 
   const renderActions = (client: ClientModel) => (
     <>
       <ToggleStatusButton
         isActive={client.isActive}
-        onToggle={() => { ClientService.toggleActive(client.id); refresh(); }}
+        onToggle={() => handleToggleActive(client)}
       />
       <button
         onClick={() => setModal({ type: 'edit', client })}
@@ -152,7 +176,7 @@ export default function ClientsPage() {
       <PageHeader
         icon={Users}
         title="Clientes"
-        subtitle={`${clients.length} clientes registrados`}
+        subtitle={`${totalElements} clientes registrados`}
         actionLabel="Nuevo Cliente"
         onAction={() => setModal({ type: 'create' })}
       />
@@ -164,12 +188,12 @@ export default function ClientsPage() {
       />
 
       <DataTable
-        data={paginated}
+        data={clients}
         columns={columns}
         keyExtractor={(c) => c.id}
         renderActions={renderActions}
         actionsAlign="center"
-        emptyMessage="No se encontraron clientes."
+        emptyMessage={isLoading ? 'Cargando clientes...' : 'No se encontraron clientes.'}
       />
 
       <Pagination
@@ -177,7 +201,7 @@ export default function ClientsPage() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         itemsPerPage={PAGE_SIZE}
-        totalItems={filtered.length}
+        totalItems={totalElements}
       />
 
       {(modal.type === 'create' || modal.type === 'edit') && (
