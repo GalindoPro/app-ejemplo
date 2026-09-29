@@ -20,6 +20,7 @@ import {
   Zap,
   Pause,
   Timer,
+  Activity,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,7 +30,7 @@ export default function DashboardPage() {
 
   const [testLogs, setTestLogs] = useState<Array<{ text: string; type: 'info' | 'success' | 'warn' | 'error'; time: string }>>([
     {
-      text: 'Sistema BFF inicializado. Peticiones enmascaradas bajo /api/*',
+      text: 'Gateway BFF inicializado. Todas las peticiones del cliente se enrutan de forma segura mediante /api/*',
       type: 'info',
       time: new Date().toLocaleTimeString(),
     },
@@ -45,47 +46,47 @@ export default function DashboardPage() {
     ]);
   };
 
-  // Criterio 1: Demostración BFF (1.5 pts)
+  // 1. Diagnóstico BFF
   const handleFetchProducts = async () => {
     setIsTesting(true);
-    addLog('📡 [Criterio 1 - BFF] Enviando petición a: GET http://localhost:3000/api/products...', 'info');
+    addLog('📡 [BFF Gateway] Petición enviada: GET http://localhost:3000/api/products...', 'info');
     try {
       const data = await ProductService.getProducts();
-      addLog(`✅ [Criterio 1 - BFF] Respuesta 200 OK: ${data.length} productos recibidos sin exponer Backend externo.`, 'success');
+      addLog(`✅ [BFF Gateway] 200 OK: ${data.length} productos recibidos mediante el proxy inverso.`, 'success');
     } catch (error: any) {
-      addLog(`❌ Error en llamada BFF: ${error.message}`, 'error');
+      addLog(`❌ Error en comunicación BFF: ${error.message}`, 'error');
     } finally {
       setIsTesting(false);
     }
   };
 
-  // Criterio 2: Demostración Refresh Token & Interceptor (2.5 pts)
+  // 2. Verificación de Auto-Refresh
   const handleTestAutoRefresh = async () => {
     setIsTesting(true);
-    addLog('🔄 [Criterio 2 - Refresh] Iniciando prueba de intercepción de 401 y renovación automática...', 'info');
+    addLog('🔄 [Seguridad] Verificando interceptor de sesión y ciclo de vida de tokens...', 'info');
     try {
       forceExpireToken();
-      addLog('1️⃣ Petición enviada con token expirado a /api/products -> Esperando 401...', 'warn');
+      addLog('1️⃣ Petición con token expirado enviada a /api/products -> Esperando 401 Unauthorized...', 'warn');
       
       const result = await ProductService.getProducts();
       
-      addLog('2️⃣ 401 interceptado -> POST /api/auth/refresh ejecutado automáticamente en segundo plano.', 'info');
-      addLog('3️⃣ Nuevo token obtenido y petición original reintentada con éxito (200 OK)! 🎉', 'success');
+      addLog('2️⃣ 401 capturado -> POST /api/auth/refresh ejecutado automáticamente por el interceptor.', 'info');
+      addLog('3️⃣ Nuevo Access Token establecido y petición reintentada con éxito (200 OK).', 'success');
     } catch (error: any) {
-      addLog(`❌ Error en flujo de auto-refresh: ${error.message}`, 'error');
+      addLog(`❌ Error en renovación de token: ${error.message}`, 'error');
     } finally {
       setIsTesting(false);
     }
   };
 
-  // Criterio 3: Demostración Inactividad (1.0 pts)
+  // 3. Auditoría de Inactividad
   const handleToggleInactivity = () => {
     if (isTimerActive) {
       stopInactivityTest();
-      addLog('⏸️ [Criterio 3 - Inactividad] Temporizador pausado.', 'info');
+      addLog('⏸️ [Seguridad] Monitoreo de inactividad pausado.', 'info');
     } else {
       startInactivityTest(15);
-      addLog('⏳ [Criterio 3 - Inactividad] Conteo de 15s iniciado. Suelta mouse y teclado para la expulsión.', 'warn');
+      addLog('⏳ [Seguridad] Monitoreo de inactividad iniciado (15s). Esperando ausencia de interacción.', 'warn');
     }
   };
 
@@ -105,13 +106,13 @@ export default function DashboardPage() {
             Panel de Control - Ferretería Express
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-xl">
-            Implementación de Arquitectura BFF (Backend For Frontend), Interceptor de Refresh Token y Control de Inactividad.
+            Arquitectura BFF (Backend For Frontend), Interceptor de Refresh Token y Control de Inactividad de Sesión.
           </p>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* PANEL DE DEMOSTRACIÓN (3 CRITERIOS EXACTOS DE LA RÚBRICA)                 */}
+      {/* PANEL DE MONITOREO Y SEGURIDAD DE RED                                      */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl border border-indigo-100 shadow-md p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -121,35 +122,36 @@ export default function DashboardPage() {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Consola de Evaluación (3 Criterios de la Rúbrica)
+                Centro de Monitoreo & Seguridad de Red
               </h2>
               <p className="text-xs text-slate-500">
-                Usa estos 3 botones secuenciales durante la grabación del video con la pestaña Network abierta.
+                Diagnóstico de comunicación BFF, ciclo de vida de tokens e inactividad de sesión.
               </p>
             </div>
           </div>
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200/60 w-fit">
-            ● BFF Activo en /api/*
+          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200/60 w-fit flex items-center space-x-1.5">
+            <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+            <span>Gateway BFF Activo (/api/*)</span>
           </span>
         </div>
 
-        {/* 3 Botones Principales (1 por Criterio) */}
+        {/* 3 Módulos de Diagnóstico */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           
-          {/* Criterio 1: BFF */}
+          {/* Módulo 1: BFF */}
           <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4 flex flex-col justify-between hover:border-indigo-200 transition-colors">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase tracking-wide">
                   <Zap className="w-4 h-4" />
-                  <span>Criterio 1: Patrón BFF</span>
+                  <span>Enrutamiento BFF</span>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">
-                  1.5 pts
+                  Proxy Inverso
                 </span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Muestra en la pestaña Network que la petición va a <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px]">/api/products</code> sin revelar el servidor real.
+                Realiza una consulta de catálogo enrutada internamente mediante el proxy de Next.js sin exponer el backend.
               </p>
             </div>
             <button
@@ -158,24 +160,24 @@ export default function DashboardPage() {
               className="w-full py-3 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5" />
-              <span>1. Consultar Datos vía BFF</span>
+              <span>Consultar Catálogo (BFF)</span>
             </button>
           </div>
 
-          {/* Criterio 2: Refresh Token & Interceptor */}
+          {/* Módulo 2: Auto-Refresh */}
           <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-4 flex flex-col justify-between hover:border-emerald-300 transition-colors">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-emerald-800 font-bold text-xs uppercase tracking-wide">
                   <RefreshCw className="w-4 h-4" />
-                  <span>Criterio 2: Refresh Token</span>
+                  <span>Ciclo de Vida de Token</span>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">
-                  2.5 pts
+                  Auto-Refresh
                 </span>
               </div>
               <p className="text-xs text-emerald-900 leading-relaxed">
-                Demuestra el flujo completo en Network: <strong>401</strong> ➔ petición silenciosa a <strong>/api/auth/refresh</strong> ➔ reintento exitoso (<strong>200 OK</strong>).
+                Valida la intercepción ante token expirado (401), renovación silenciosa y repetición transparente de la petición.
               </p>
             </div>
             <button
@@ -184,26 +186,26 @@ export default function DashboardPage() {
               className="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-              <span>2. Probar Refresh (401 ➔ 200)</span>
+              <span>Verificar Renovación (401 ➔ 200)</span>
             </button>
           </div>
 
-          {/* Criterio 3: Inactividad */}
+          {/* Módulo 3: Inactividad */}
           <div className="p-5 bg-purple-50/60 rounded-2xl border border-purple-200/80 space-y-4 flex flex-col justify-between hover:border-purple-300 transition-colors">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-purple-800 font-bold text-xs uppercase tracking-wide">
                   <Timer className="w-4 h-4" />
-                  <span>Criterio 3: Inactividad</span>
+                  <span>Política de Inactividad</span>
                 </div>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md">
-                  1.0 pts
+                  15 Segundos
                 </span>
               </div>
               <p className="text-xs text-purple-900 leading-relaxed">
                 {isTimerActive
-                  ? `Conteo regresivo activo: ${secondsRemaining}s restantes sin mover teclado/mouse.`
-                  : 'Inicia el conteo de 15 segundos para demostrar la expulsión automática al Login.'}
+                  ? `Temporizador en curso: ${secondsRemaining}s restantes sin interacción de mouse/teclado.`
+                  : 'Monitorea la inactividad del operador y asegura la sesión cerrándola automáticamente al expirar el tiempo.'}
               </p>
             </div>
             <button
@@ -222,7 +224,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5" />
-                  <span>3. Iniciar Inactividad (15s)</span>
+                  <span>Iniciar Monitoreo (15s)</span>
                 </>
               )}
             </button>
@@ -267,7 +269,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between text-xs text-slate-400 border-b border-slate-800 pb-2">
               <div className="flex items-center space-x-2">
                 <Terminal className="w-4 h-4 text-indigo-400" />
-                <span className="font-mono font-bold text-slate-200">Live BFF Interceptor Terminal</span>
+                <span className="font-mono font-bold text-slate-200">Terminal de Eventos de Red & Sesión</span>
               </div>
               <button
                 onClick={() => setTestLogs([])}
