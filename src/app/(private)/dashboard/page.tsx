@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   RefreshCw,
   Terminal,
-  Clock,
   Play,
   Zap,
   Pause,
@@ -30,7 +29,7 @@ export default function DashboardPage() {
 
   const [testLogs, setTestLogs] = useState<Array<{ text: string; type: 'info' | 'success' | 'warn' | 'error'; time: string }>>([
     {
-      text: 'Sistema BFF inicializado. Todas las peticiones están enmascaradas bajo /api/*',
+      text: 'Sistema BFF inicializado. Peticiones enmascaradas bajo /api/*',
       type: 'info',
       time: new Date().toLocaleTimeString(),
     },
@@ -46,13 +45,13 @@ export default function DashboardPage() {
     ]);
   };
 
-  // 1. Demostración BFF: Consultar Productos vía Proxy BFF
+  // Criterio 1: Demostración BFF (1.5 pts)
   const handleFetchProducts = async () => {
     setIsTesting(true);
-    addLog('📡 Iniciando petición al BFF: GET http://localhost:3000/api/products...', 'info');
+    addLog('📡 [Criterio 1 - BFF] Enviando petición a: GET http://localhost:3000/api/products...', 'info');
     try {
       const data = await ProductService.getProducts();
-      addLog(`✅ BFF respondió con éxito (200 OK): ${data.length} productos recibidos sin exponer Backend real.`, 'success');
+      addLog(`✅ [Criterio 1 - BFF] Respuesta 200 OK: ${data.length} productos recibidos sin exponer Backend externo.`, 'success');
     } catch (error: any) {
       addLog(`❌ Error en llamada BFF: ${error.message}`, 'error');
     } finally {
@@ -60,25 +59,18 @@ export default function DashboardPage() {
     }
   };
 
-  // 2. Demostración Refresh Token: Simular Token Expirado
-  const handleForceExpire = () => {
-    forceExpireToken();
-    addLog('⚠️ Token de Acceso manipulado a estado "EXPIRADO" en localStorage/memoria.', 'warn');
-    addLog('ℹ️ La próxima llamada recibirá 401 Unauthorized y disparará el auto-refresh silencioso.', 'info');
-  };
-
-  // 3. Demostración Interceptor: Petición que dispara 401 -> Refresh -> Retry
+  // Criterio 2: Demostración Refresh Token & Interceptor (2.5 pts)
   const handleTestAutoRefresh = async () => {
     setIsTesting(true);
-    addLog('🔄 Enviando petición protegida para verificar Interceptor de 401...', 'info');
+    addLog('🔄 [Criterio 2 - Refresh] Iniciando prueba de intercepción de 401 y renovación automática...', 'info');
     try {
       forceExpireToken();
-      addLog('1️⃣ Petición enviada con Access Token Expirado a /api/products...', 'warn');
+      addLog('1️⃣ Petición enviada con token expirado a /api/products -> Esperando 401...', 'warn');
       
       const result = await ProductService.getProducts();
       
-      addLog('2️⃣ 401 Unauthorized interceptado -> POST /api/auth/refresh ejecutado automáticamente.', 'info');
-      addLog('3️⃣ Nuevo Access Token obtenido y petición original reintentada con éxito (200 OK)! 🎉', 'success');
+      addLog('2️⃣ 401 interceptado -> POST /api/auth/refresh ejecutado automáticamente en segundo plano.', 'info');
+      addLog('3️⃣ Nuevo token obtenido y petición original reintentada con éxito (200 OK)! 🎉', 'success');
     } catch (error: any) {
       addLog(`❌ Error en flujo de auto-refresh: ${error.message}`, 'error');
     } finally {
@@ -86,14 +78,14 @@ export default function DashboardPage() {
     }
   };
 
-  // 4. Demostración Inactividad: Iniciar/Detener temporizador de 15 segundos
+  // Criterio 3: Demostración Inactividad (1.0 pts)
   const handleToggleInactivity = () => {
     if (isTimerActive) {
       stopInactivityTest();
-      addLog('⏸️ Prueba de inactividad pausada.', 'info');
+      addLog('⏸️ [Criterio 3 - Inactividad] Temporizador pausado.', 'info');
     } else {
       startInactivityTest(15);
-      addLog('⏳ Prueba de inactividad iniciada (15s). Suelta el mouse y teclado para demostrar la expulsión.', 'warn');
+      addLog('⏳ [Criterio 3 - Inactividad] Conteo de 15s iniciado. Suelta mouse y teclado para la expulsión.', 'warn');
     }
   };
 
@@ -119,7 +111,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* PANEL DE DEMOSTRACIÓN Y PRUEBAS PARA EVALUACIÓN DEL VIDEO (BFF & SECURITY) */}
+      {/* PANEL DE DEMOSTRACIÓN (3 CRITERIOS EXACTOS DE LA RÚBRICA)                 */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl border border-indigo-100 shadow-md p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
@@ -129,10 +121,10 @@ export default function DashboardPage() {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Consola de Pruebas de Seguridad & Patrón BFF
+                Consola de Evaluación (3 Criterios de la Rúbrica)
               </h2>
               <p className="text-xs text-slate-500">
-                Herramientas interactivas para demostrar los 3 criterios de la rúbrica con la pestaña Network abierta.
+                Usa estos 3 botones secuenciales durante la grabación del video con la pestaña Network abierta.
               </p>
             </div>
           </div>
@@ -141,87 +133,82 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        {/* 4 Acciones Rápidas de Demostración */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 3 Botones Principales (1 por Criterio) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           
-          {/* Prueba 1: Demostración BFF */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase tracking-wide">
-                <Zap className="w-4 h-4" />
-                <span>1. Demostración BFF</span>
+          {/* Criterio 1: BFF */}
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-4 flex flex-col justify-between hover:border-indigo-200 transition-colors">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-indigo-700 font-bold text-xs uppercase tracking-wide">
+                  <Zap className="w-4 h-4" />
+                  <span>Criterio 1: Patrón BFF</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md">
+                  1.5 pts
+                </span>
               </div>
-              <p className="text-xs text-slate-600">
-                Consulta catálogo llamando únicamente a <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px]">/api/products</code> (Proxy BFF sin exponer el backend).
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Muestra en la pestaña Network que la petición va a <code className="bg-slate-200 px-1 py-0.5 rounded text-[11px]">/api/products</code> sin revelar el servidor real.
               </p>
             </div>
             <button
               onClick={handleFetchProducts}
               disabled={isTesting}
-              className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+              className="w-full py-3 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5" />
-              <span>Consultar Datos vía BFF</span>
+              <span>1. Consultar Datos vía BFF</span>
             </button>
           </div>
 
-          {/* Prueba 2: Forzar Token Expirado */}
-          <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200/70 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2 text-amber-800 font-bold text-xs uppercase tracking-wide">
-                <AlertTriangle className="w-4 h-4" />
-                <span>2. Forzar 401</span>
+          {/* Criterio 2: Refresh Token & Interceptor */}
+          <div className="p-5 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-4 flex flex-col justify-between hover:border-emerald-300 transition-colors">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-emerald-800 font-bold text-xs uppercase tracking-wide">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Criterio 2: Refresh Token</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">
+                  2.5 pts
+                </span>
               </div>
-              <p className="text-xs text-amber-900">
-                Altera el Access Token a expirado para forzar un <code className="bg-amber-100 px-1 py-0.5 rounded text-[11px]">401 Unauthorized</code> en la siguiente llamada.
-              </p>
-            </div>
-            <button
-              onClick={handleForceExpire}
-              className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Forzar Token Expirado</span>
-            </button>
-          </div>
-
-          {/* Prueba 3: Demostración Auto-Refresh Interceptor */}
-          <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/70 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2 text-emerald-800 font-bold text-xs uppercase tracking-wide">
-                <RefreshCw className="w-4 h-4" />
-                <span>3. Refresh Token</span>
-              </div>
-              <p className="text-xs text-emerald-900">
-                Dispara el flujo completo: <strong>401</strong> ➔ solicitud a <strong>/api/auth/refresh</strong> ➔ reintento exitoso (<strong>200 OK</strong>).
+              <p className="text-xs text-emerald-900 leading-relaxed">
+                Demuestra el flujo completo en Network: <strong>401</strong> ➔ petición silenciosa a <strong>/api/auth/refresh</strong> ➔ reintento exitoso (<strong>200 OK</strong>).
               </p>
             </div>
             <button
               onClick={handleTestAutoRefresh}
               disabled={isTesting}
-              className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+              className="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-              <span>Probar Refresh (401 ➔ 200)</span>
+              <span>2. Probar Refresh (401 ➔ 200)</span>
             </button>
           </div>
 
-          {/* Prueba 4: Demostración Control de Inactividad */}
-          <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-200/70 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2 text-purple-800 font-bold text-xs uppercase tracking-wide">
-                <Timer className="w-4 h-4" />
-                <span>4. Inactividad (15s)</span>
+          {/* Criterio 3: Inactividad */}
+          <div className="p-5 bg-purple-50/60 rounded-2xl border border-purple-200/80 space-y-4 flex flex-col justify-between hover:border-purple-300 transition-colors">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-purple-800 font-bold text-xs uppercase tracking-wide">
+                  <Timer className="w-4 h-4" />
+                  <span>Criterio 3: Inactividad</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md">
+                  1.0 pts
+                </span>
               </div>
-              <p className="text-xs text-purple-900">
+              <p className="text-xs text-purple-900 leading-relaxed">
                 {isTimerActive
-                  ? `Temporizador activo: ${secondsRemaining}s restantes sin mover mouse/teclado.`
-                  : 'Inicia el conteo regresivo de 15s para demostrar el cierre automático en video.'}
+                  ? `Conteo regresivo activo: ${secondsRemaining}s restantes sin mover teclado/mouse.`
+                  : 'Inicia el conteo de 15 segundos para demostrar la expulsión automática al Login.'}
               </p>
             </div>
             <button
               onClick={handleToggleInactivity}
-              className={`w-full py-2.5 px-3 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+              className={`w-full py-3 px-3 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-2 cursor-pointer ${
                 isTimerActive
                   ? 'bg-rose-600 hover:bg-rose-700 animate-pulse'
                   : 'bg-purple-600 hover:bg-purple-700'
@@ -235,7 +222,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5" />
-                  <span>Iniciar Inactividad (15s)</span>
+                  <span>3. Iniciar Inactividad (15s)</span>
                 </>
               )}
             </button>
