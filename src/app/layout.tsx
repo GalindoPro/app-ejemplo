@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/modules/auth/context/AuthContext';
+import { InactivityProvider } from '@/shared/context/InactivityContext';
 import { LoginModal } from '@/modules/auth/components/LoginModal';
 import './globals.css';
 
@@ -17,8 +18,10 @@ export default function RootLayout({
     <html lang="es">
       <body className="bg-slate-50 text-slate-900 min-h-screen antialiased">
         <AuthProvider>
-          {children}
-          <LoginModal />
+          <InactivityProvider>
+            {children}
+            <LoginModal />
+          </InactivityProvider>
         </AuthProvider>
       </body>
     </html>

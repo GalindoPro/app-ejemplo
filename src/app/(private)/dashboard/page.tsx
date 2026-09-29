@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/modules/auth/context/AuthContext';
+import { useInactivity } from '@/shared/context/InactivityContext';
 import { ProductService } from '@/modules/products/services/product.service';
 import {
   Shield,
@@ -16,16 +17,16 @@ import {
   RefreshCw,
   Terminal,
   Clock,
-  CheckCircle2,
-  XCircle,
   Play,
   Zap,
+  Pause,
+  Timer,
 } from 'lucide-react';
 import Link from 'next/link';
-import { httpClient } from '@/shared/utils/httpClient';
 
 export default function DashboardPage() {
-  const { user, forceExpireToken, testRefreshFlow } = useAuth();
+  const { user, forceExpireToken } = useAuth();
+  const { isActive: isTimerActive, secondsRemaining, startInactivityTest, stopInactivityTest } = useInactivity();
 
   const [testLogs, setTestLogs] = useState<Array<{ text: string; type: 'info' | 'success' | 'warn' | 'error'; time: string }>>([
     {
@@ -71,7 +72,6 @@ export default function DashboardPage() {
     setIsTesting(true);
     addLog('🔄 Enviando petición protegida para verificar Interceptor de 401...', 'info');
     try {
-      // Si el usuario aún no expiró el token, lo expiramos para garantizar la demostración del 401 en vivo
       forceExpireToken();
       addLog('1️⃣ Petición enviada con Access Token Expirado a /api/products...', 'warn');
       
@@ -83,6 +83,17 @@ export default function DashboardPage() {
       addLog(`❌ Error en flujo de auto-refresh: ${error.message}`, 'error');
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  // 4. Demostración Inactividad: Iniciar/Detener temporizador de 15 segundos
+  const handleToggleInactivity = () => {
+    if (isTimerActive) {
+      stopInactivityTest();
+      addLog('⏸️ Prueba de inactividad pausada.', 'info');
+    } else {
+      startInactivityTest(15);
+      addLog('⏳ Prueba de inactividad iniciada (15s). Suelta el mouse y teclado para demostrar la expulsión.', 'warn');
     }
   };
 
@@ -130,8 +141,8 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        {/* Acciones Rápidas de Demostración */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* 4 Acciones Rápidas de Demostración */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Prueba 1: Demostración BFF */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-3 flex flex-col justify-between">
@@ -147,7 +158,7 @@ export default function DashboardPage() {
             <button
               onClick={handleFetchProducts}
               disabled={isTesting}
-              className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50"
+              className="w-full py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
             >
               <Play className="w-3.5 h-3.5" />
               <span>Consultar Datos vía BFF</span>
@@ -159,15 +170,15 @@ export default function DashboardPage() {
             <div className="space-y-1">
               <div className="flex items-center space-x-2 text-amber-800 font-bold text-xs uppercase tracking-wide">
                 <AlertTriangle className="w-4 h-4" />
-                <span>2. Forzar 401 (Expirar)</span>
+                <span>2. Forzar 401</span>
               </div>
               <p className="text-xs text-amber-900">
-                Altera el Access Token a estado expirado para provocar un <code className="bg-amber-100 px-1 py-0.5 rounded text-[11px]">401 Unauthorized</code> en la siguiente petición.
+                Altera el Access Token a expirado para forzar un <code className="bg-amber-100 px-1 py-0.5 rounded text-[11px]">401 Unauthorized</code> en la siguiente llamada.
               </p>
             </div>
             <button
               onClick={handleForceExpire}
-              className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5"
+              className="w-full py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer"
             >
               <AlertTriangle className="w-3.5 h-3.5" />
               <span>Forzar Token Expirado</span>
@@ -179,7 +190,7 @@ export default function DashboardPage() {
             <div className="space-y-1">
               <div className="flex items-center space-x-2 text-emerald-800 font-bold text-xs uppercase tracking-wide">
                 <RefreshCw className="w-4 h-4" />
-                <span>3. Demostración Refresh Token</span>
+                <span>3. Refresh Token</span>
               </div>
               <p className="text-xs text-emerald-900">
                 Dispara el flujo completo: <strong>401</strong> ➔ solicitud a <strong>/api/auth/refresh</strong> ➔ reintento exitoso (<strong>200 OK</strong>).
@@ -188,10 +199,45 @@ export default function DashboardPage() {
             <button
               onClick={handleTestAutoRefresh}
               disabled={isTesting}
-              className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50"
+              className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isTesting ? 'animate-spin' : ''}`} />
-              <span>Probar Flujo Refresh (401 ➔ 200)</span>
+              <span>Probar Refresh (401 ➔ 200)</span>
+            </button>
+          </div>
+
+          {/* Prueba 4: Demostración Control de Inactividad */}
+          <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-200/70 space-y-3 flex flex-col justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2 text-purple-800 font-bold text-xs uppercase tracking-wide">
+                <Timer className="w-4 h-4" />
+                <span>4. Inactividad (15s)</span>
+              </div>
+              <p className="text-xs text-purple-900">
+                {isTimerActive
+                  ? `Temporizador activo: ${secondsRemaining}s restantes sin mover mouse/teclado.`
+                  : 'Inicia el conteo regresivo de 15s para demostrar el cierre automático en video.'}
+              </p>
+            </div>
+            <button
+              onClick={handleToggleInactivity}
+              className={`w-full py-2.5 px-3 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center justify-center space-x-1.5 cursor-pointer ${
+                isTimerActive
+                  ? 'bg-rose-600 hover:bg-rose-700 animate-pulse'
+                  : 'bg-purple-600 hover:bg-purple-700'
+              }`}
+            >
+              {isTimerActive ? (
+                <>
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Pausar ({secondsRemaining}s)</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Iniciar Inactividad (15s)</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -222,8 +268,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="pt-2 border-t border-slate-800 text-[11px] font-sans text-slate-400 flex items-center justify-between">
-              <span>Política Inactividad:</span>
-              <span className="font-bold text-amber-400">15 Segundos</span>
+              <span>Estado Inactividad:</span>
+              <span className={`font-bold ${isTimerActive ? 'text-amber-400 animate-pulse' : 'text-slate-400'}`}>
+                {isTimerActive ? `Activo (${secondsRemaining}s)` : 'En Espera'}
+              </span>
             </div>
           </div>
 

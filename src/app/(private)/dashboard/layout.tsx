@@ -161,7 +161,7 @@ export default function DashboardLayout({
           </div>
 
           <div className="flex items-center space-x-3">
-            <InactivityTracker timeoutSeconds={15} />
+            <InactivityTracker />
           </div>
         </header>
 
