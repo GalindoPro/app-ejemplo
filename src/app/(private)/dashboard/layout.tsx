@@ -16,6 +16,7 @@ import {
   Lock,
   ArrowLeft,
 } from 'lucide-react';
+import { InactivityTracker } from '@/shared/components/InactivityTracker';
 
 export default function DashboardLayout({
   children,
@@ -157,6 +158,10 @@ export default function DashboardLayout({
             <span className="text-xs font-bold text-slate-700 capitalize">
               {pathname.replace('/dashboard', '').replace('/', '') || 'Resumen General'}
             </span>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <InactivityTracker timeoutSeconds={15} />
           </div>
         </header>
 

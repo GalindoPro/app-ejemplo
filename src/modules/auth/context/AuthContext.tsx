@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { UserModel } from '../models/user.model';
 import { AuthService } from '../services/auth.service';
 import { UserAdapter } from '../adapters/user.adapter';
+import { httpClient } from '@/shared/utils/httpClient';
 
 interface AuthContextType {
   user: UserModel | null;
@@ -11,10 +12,14 @@ interface AuthContextType {
   isLoginModalOpen: boolean;
   isLoading: boolean;
   loginError: string | null;
+  inactivityNotice: string | null;
   openLoginModal: () => void;
   closeLoginModal: () => void;
   login: (email: string, pass: string) => Promise<boolean>;
   logout: () => void;
+  setInactivityNotice: (msg: string | null) => void;
+  forceExpireToken: () => void;
+  testRefreshFlow: (force401?: boolean) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,10 +29,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [inactivityNotice, setInactivityNotice] = useState<string | null>(null);
+
+  const logout = useCallback(() => {
+    const rToken = httpClient.getRefreshToken();
+    AuthService.logout(rToken);
+    httpClient.clearTokens();
+    setUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('app_user_session');
+    }
+  }, []);
 
   useEffect(() => {
     // Restaurar sesión activa desde localStorage en el primer render del cliente
     if (typeof window !== 'undefined') {
+      httpClient.loadTokensFromStorage();
       const savedUser = localStorage.getItem('app_user_session');
       if (savedUser) {
         try {
@@ -36,8 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.removeItem('app_user_session');
         }
       }
+
+      // Registrar callback cuando la sesión expire definitivamente
+      httpClient.onSessionExpired(() => {
+        logout();
+        setInactivityNotice('Tu sesión ha expirado o el Refresh Token es inválido.');
+        setIsLoginModalOpen(true);
+      });
     }
-  }, []);
+  }, [logout]);
 
   const openLoginModal = () => {
     setLoginError(null);
@@ -46,28 +70,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const closeLoginModal = () => {
     setLoginError(null);
+    setInactivityNotice(null);
     setIsLoginModalOpen(false);
   };
 
   const login = async (email: string, pass: string): Promise<boolean> => {
     setIsLoading(true);
     setLoginError(null);
+    setInactivityNotice(null);
 
     try {
-      // Capa Service (Obtiene DTO)
-      const userDto = await AuthService.login(email, pass);
+      // 1. Llamada a través del BFF (/api/auth/login)
+      const authResult = await AuthService.login(email, pass);
 
-      if (!userDto) {
+      if (!authResult || !authResult.success) {
         setLoginError('Credenciales inválidas o usuario inactivo.');
         setIsLoading(false);
         return false;
       }
 
-      // Capa Adapter (Transforma DTO -> Model)
-      const userModel = UserAdapter.toModel(userDto);
+      // 2. Guardar Tokens (Access + Refresh)
+      httpClient.setTokens({
+        accessToken: authResult.accessToken,
+        refreshToken: authResult.refreshToken,
+      });
 
-      // Actualiza Estado UI y LocalStorage
+      // 3. Adaptar DTO -> Model
+      const userModel = UserAdapter.toModel(authResult.user);
       setUser(userModel);
+
       if (typeof window !== 'undefined') {
         localStorage.setItem('app_user_session', JSON.stringify(userModel));
       }
@@ -82,11 +113,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('app_user_session');
-    }
+  const forceExpireToken = () => {
+    httpClient.forceExpireAccessToken();
+  };
+
+  const testRefreshFlow = async (force401: boolean = false) => {
+    return await AuthService.testProtectedEndpoint(force401);
   };
 
   return (
@@ -97,10 +129,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoginModalOpen,
         isLoading,
         loginError,
+        inactivityNotice,
         openLoginModal,
         closeLoginModal,
         login,
         logout,
+        setInactivityNotice,
+        forceExpireToken,
+        testRefreshFlow,
       }}
     >
       {children}

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { X, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react';
 
 export const LoginModal: React.FC = () => {
-  const { isLoginModalOpen, closeLoginModal, login, isLoading, loginError } = useAuth();
+  const { isLoginModalOpen, closeLoginModal, login, isLoading, loginError, inactivityNotice } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState<string>('');
@@ -85,6 +85,13 @@ export const LoginModal: React.FC = () => {
 
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {inactivityNotice && (
+            <div className="flex items-center space-x-2 p-3 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+              <span>{inactivityNotice}</span>
+            </div>
+          )}
+
           {loginError && (
             <div className="flex items-center space-x-2 p-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl">
               <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />

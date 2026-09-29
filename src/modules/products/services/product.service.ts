@@ -1,24 +1,22 @@
-import productsData from '@/shared/data/products.json';
 import { ProductDTO } from '../dtos/product.dto';
+import { httpClient } from '@/shared/utils/httpClient';
 
 export class ProductService {
   /**
-   * Obtiene la lista completa de DTOs de productos.
+   * Obtiene la lista completa de DTOs de productos a través del Proxy BFF (/api/products).
+   * Si el token ha expirado, el httpClient interceptará automáticamente el 401,
+   * renovará el token con /api/auth/refresh y reintentará esta consulta.
    */
   static async getProducts(): Promise<ProductDTO[]> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    if (typeof window !== 'undefined') {
-      const local = localStorage.getItem('app_products');
-      if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          // fallback a json
-        }
+    try {
+      const response = await httpClient.get<{ success: boolean; data: ProductDTO[] }>('/api/products');
+      if (response && response.data) {
+        return response.data;
       }
+      return [];
+    } catch (error) {
+      console.error('Error al obtener productos vía BFF:', error);
+      throw error;
     }
-
-    return productsData as ProductDTO[];
   }
 }
